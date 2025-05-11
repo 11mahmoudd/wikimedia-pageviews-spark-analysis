@@ -263,7 +263,7 @@ def main():
 
     # Save results to CSV
     print("Saving results to CSV...")
-    save_results_to_csv(results, 'results.csv')
+    save_results_to_csv(results, 'results/results.csv') 
     print("Results saved successfully!")
 
     spark.stop()
