@@ -1,0 +1,2 @@
+# wikimedia-pageviews-spark-analysis
+  This repository contains a Spark-based analysis of Wikimedia project page view statistics.   We explore and process real page view data using two approaches: - The **MapReduce paradigm** in Spark - **Spark procedural loops (collect + local loops)**  We compare both methods in terms of performance (execution time) and correctness across a set of analytical tasks.
