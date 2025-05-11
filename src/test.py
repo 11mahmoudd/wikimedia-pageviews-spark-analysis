@@ -3,8 +3,6 @@ import re
 import os
 from collections import defaultdict
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
-from pyspark.sql.functions import col
 
 
 # Initialize Spark session
@@ -13,12 +11,14 @@ data_rdd = spark.sparkContext.textFile("pagecounts-20160101-000000_parsed.out")
 
 def parse_line(line):
     fields = line.split()
-    project_code = fields[0]
-    page_title = fields[1]
-    page_hits = int(fields[2])
-    page_size = int(fields[3])
-
-    return (project_code, page_title, page_hits, page_size) if len(fields) == 4 else None
+    if len(fields) == 4:
+        project_code = fields[0]
+        page_title = fields[1]
+        page_hits = int(fields[2])
+        page_size = int(fields[3])
+        return (project_code, page_title, page_hits, page_size)
+    else:
+        return None
 
 
 parsed_rdd = data_rdd.map(parse_line).filter(lambda x: x is not None)
@@ -197,44 +197,78 @@ def main():
     # Measure performance for each query
     results = []
 
-    # Q1
-    min_size_map, max_size_map, avg_size_map = measure_performance(compute_page_size_stats, parsed_rdd)
-    min_size_loop, max_size_loop, avg_size_loop = measure_performance(compute_page_size_stats_loop, parsed_rdd)
-    results.append(("Q1", "MapReduce", min_size_map, max_size_map, avg_size_map))
-    results.append(("Q1", "Loops", min_size_loop, max_size_loop, avg_size_loop))
+   # Q1
+    print("Running Q1 MapReduce...")
+    result_map, time_mp_1 = measure_performance(compute_page_size_stats, parsed_rdd)
+    min_size_map, max_size_map, avg_size_map = result_map
+    print(f"Q1 MapReduce completed: min: {min_size_map}, max: {max_size_map}, avg: {avg_size_map}, time: {time_mp_1}")
+
+    print("Running Q1 Loops...")
+    result_loop, time_loop_1 = measure_performance(compute_page_size_stats_loop, parsed_rdd)
+    min_size_loop, max_size_loop, avg_size_loop = result_loop
+    print(f"Q1 Loops completed: min: {min_size_loop}, max: {max_size_loop}, avg: {avg_size_loop}, time: {time_loop_1}")
+
+    results.append(("Q1", "MapReduce", min_size_map, max_size_map, avg_size_map, time_mp_1))
+    results.append(("Q1", "Loops", min_size_loop, max_size_loop, avg_size_loop, time_loop_1))
 
     # Q2
-    total_count_map, non_english_count_map = measure_performance(count_titles_starting_with_the, parsed_rdd)
-    total_count_loop, non_english_count_loop = measure_performance(count_titles_starting_with_the_loop, parsed_rdd)
-    results.append(("Q2", "MapReduce", total_count_map, non_english_count_map))
-    results.append(("Q2", "Loops", total_count_loop, non_english_count_loop))
+    print("Running Q2 MapReduce...")
+    result_map, time_mp_2 = measure_performance(count_titles_starting_with_the, parsed_rdd)
+    total_count_map, non_english_count_map = result_map
+    print(f"Q2 MapReduce completed: {total_count_map}, {non_english_count_map}, time: {time_mp_2}")
+
+    print("Running Q2 Loops...")
+    result_loop, time_loop_2 = measure_performance(count_titles_starting_with_the_loop, parsed_rdd)
+    total_count_loop, non_english_count_loop = result_loop
+    print(f"Q2 Loops completed: {total_count_loop}, {non_english_count_loop}, time: {time_loop_2}")
+
+    results.append(("Q2", "MapReduce", total_count_map, non_english_count_map, time_mp_2))
+    results.append(("Q2", "Loops", total_count_loop, non_english_count_loop, time_loop_2))
 
     # Q3
-    unique_terms_count_map = measure_performance(count_unique_terms, parsed_rdd)
-    unique_terms_count_loop = measure_performance(count_unique_terms_loop, parsed_rdd)
-    results.append(("Q3", "MapReduce", unique_terms_count_map))
-    results.append(("Q3", "Loops", unique_terms_count_loop))
+    print("Running Q3 MapReduce...")
+    unique_terms_count_map, time_mp_3 = measure_performance(count_unique_terms, parsed_rdd)
+    print(f"Q3 MapReduce completed: {unique_terms_count_map}, time: {time_mp_3}")
+
+    print("Running Q3 Loops...")
+    unique_terms_count_loop, time_loop_3 = measure_performance(count_unique_terms_loop, parsed_rdd)
+    print(f"Q3 Loops completed: {unique_terms_count_loop}, time: {time_loop_3}")
+
+    results.append(("Q3", "MapReduce", unique_terms_count_map, time_mp_3))
+    results.append(("Q3", "Loops", unique_terms_count_loop, time_loop_3))
 
     # Q4
-    title_repetitions_map = measure_performance(count_title_repetitions, parsed_rdd)
-    title_repetitions_loop = measure_performance(count_title_repetitions_loop, parsed_rdd)
-    results.append(("Q4", "MapReduce", title_repetitions_map))
-    results.append(("Q4", "Loops", title_repetitions_loop))
+    print("Running Q4 MapReduce...")
+    title_repetitions_map, time_mp_4 = measure_performance(count_title_repetitions, parsed_rdd)
+    print(f"Q4 MapReduce completed: {len(title_repetitions_map)} items, time: {time_mp_4}")
+
+    print("Running Q4 Loops...")
+    title_repetitions_loop, time_loop_4 = measure_performance(count_title_repetitions_loop, parsed_rdd)
+    print(f"Q4 Loops completed: {len(title_repetitions_loop)} items, time: {time_loop_4}")
+
+    results.append(("Q4", "MapReduce", len(title_repetitions_map), time_mp_4))
+    results.append(("Q4", "Loops", len(title_repetitions_loop), time_loop_4))
 
     # Q5
-    combined_data_map = measure_performance(combine_page_data, parsed_rdd)
-    combined_data_loop = measure_performance(combine_page_data_loop, parsed_rdd)
-    results.append(("Q5", "MapReduce", combined_data_map))
-    results.append(("Q5", "Loops", combined_data_loop))
+    print("Running Q5 MapReduce...")
+    combined_data_map, time_mp_5 = measure_performance(combine_page_data, parsed_rdd)
+    print(f"Q5 MapReduce completed: {len(combined_data_map)} items, time: {time_mp_5}")
+
+    print("Running Q5 Loops...")
+    combined_data_loop, time_loop_5 = measure_performance(combine_page_data_loop, parsed_rdd)
+    print(f"Q5 Loops completed: {len(combined_data_loop)} items, time: {time_loop_5}")
+
+    results.append(("Q5", "MapReduce", len(combined_data_map), time_mp_5))
+    results.append(("Q5", "Loops", len(combined_data_loop), time_loop_5))
 
     # Save results to CSV
+    print("Saving results to CSV...")
     save_results_to_csv(results, 'results.csv')
+    print("Results saved successfully!")
 
     spark.stop()
 
 ###################################################################
 
-if __name__ == "__main__":
-
-    main()
+main()
 
