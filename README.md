@@ -49,7 +49,8 @@ The application computes the following:
 
 - Apache Spark (tested with Spark 3.x)
 - Python (PySpark)
-- Dataset from Wikimedia pageviews (2016) 
+- Google Colab
+- Dataset from Wikimedia pageviews (2016)
 
 
 ## ⚡ Performance Evaluation
